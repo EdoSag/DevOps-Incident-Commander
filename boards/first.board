@@ -9,6 +9,26 @@
             "deps": [
                 "lib/pages/home_page.dart"
             ]
+        },
+        {
+            "x": 973,
+            "y": 200,
+            "w": 393,
+            "h": 808,
+            "widget": "const IncidentDetailScreen()",
+            "deps": [
+                "lib/pages/incident_detail_screen.dart"
+            ]
+        },
+        {
+            "x": 1446,
+            "y": 200,
+            "w": 393,
+            "h": 808,
+            "widget": "const SettingsScreen()",
+            "deps": [
+                "lib/pages/settings_screen.dart"
+            ]
         }
     ]
 }
