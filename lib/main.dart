@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:devops_incident_commander_dashboard/integrations/supabase_service.dart';
 import 'package:nowa_runtime/nowa_runtime.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -12,7 +13,11 @@ late final SharedPreferences sharedPrefs;
 main() async {
   WidgetsFlutterBinding.ensureInitialized();
   sharedPrefs = await SharedPreferences.getInstance();
-
+  try {
+    await SupabaseService().initialize();
+  } catch (e) {
+    debugPrint('Supabase initialization failed: $e');
+  }
   runApp(const MyApp());
 }
 

@@ -4,7 +4,15 @@
         "name": "devops_incident_commander_dashboard",
         "bundleId": "com.example.devopsincidentcommanderdashboard"
     },
-    "main": {},
+    "main": [
+        {
+            "key": "supabase",
+            "statement": "await SupabaseService().initialize();",
+            "imports": [
+                "package:devops_incident_commander_dashboard/integrations/supabase_service.dart"
+            ]
+        }
+    ],
     "experimental": {
         "load_packages": true
     },

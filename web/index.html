@@ -18,6 +18,16 @@
 </script>
 <!-- NOWA_PREVIEW_INJECT_END -->
 
+<script>
+  // Defensively mock Corbado Web SDK to prevent passkeys_web plugin from crashing inside the sandboxed iframe
+  window.corbado = window.corbado || {};
+  window.corbado.init = window.corbado.init || function() { return Promise.resolve(); };
+  
+  window.Corbado = window.Corbado || function() {};
+  window.Corbado.prototype = window.Corbado.prototype || {};
+  window.Corbado.prototype.init = window.Corbado.prototype.init || function() { return Promise.resolve(); };
+</script>
+
 <!--
     If you are serving your web app in a path other than the root, change the
     href value below to reflect the base path you are serving from.

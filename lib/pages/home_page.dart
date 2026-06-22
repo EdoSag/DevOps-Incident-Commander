@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:nowa_runtime/nowa_runtime.dart' hide Border, BoxDecoration;
-import 'package:go_router/go_router.dart';
-import 'package:devops_incident_commander_dashboard/globals/app_state.dart';
 import 'package:devops_incident_commander_dashboard/incident_provider.dart';
 import 'package:devops_incident_commander_dashboard/incident_status.dart';
-import 'package:devops_incident_commander_dashboard/models/dev_ops_incident.dart';
+import 'package:devops_incident_commander_dashboard/globals/app_state.dart';
+import 'package:go_router/go_router.dart';
+import 'package:devops_incident_commander_dashboard/user_role.dart';
 
 @NowaGenerated()
 class HomePage extends StatelessWidget {
@@ -211,183 +211,125 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final appState = AppState.of(context);
+  Widget _buildRadarTab(BuildContext context, AppState appState) {
     final incidents = appState.incidents;
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F111A),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF141724),
-        elevation: 0,
-        title: Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFFEF5350),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildKpiCard(
+                context,
+                label: 'ACTIVE INCIDENTS',
+                value: '${appState.activeIncidentsCount}',
+                color: const Color(0xFFEF5350),
+                icon: Icons.notifications_active_outlined,
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'INCIDENT COMMANDER',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
+              const SizedBox(width: 8),
+              _buildKpiCard(
+                context,
+                label: 'TRIGGERED ALERTS',
+                value: '${appState.triggeredAlertsCount}',
+                color: const Color(0xFFFFB74D),
+                icon: Icons.error_outline_rounded,
               ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
-            onPressed: () {
-              context.push('/settings');
-            },
+              const SizedBox(width: 8),
+              _buildKpiCard(
+                context,
+                label: 'SYSTEM UPTIME',
+                value: appState.systemUptime,
+                color: const Color(0xFF66BB6A),
+                icon: Icons.speed_outlined,
+              ),
+            ],
           ),
-          IconButton(
-            icon: appState.isLoading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          const SizedBox(height: 20),
+          Text(
+            'ACTIVE INFRASTRUCTURE RADAR',
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: appState.isLoading
+                ? ListView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: 4,
+                    itemBuilder: (context, index) => _buildSkeletonItem(),
+                  )
+                : incidents.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: ShapeDecoration(
+                            color: const Color(0xFF66BB6A).withOpacity(0.1),
+                            shape: CircleBorder(
+                              side: BorderSide(
+                                color: const Color(
+                                  0xFF66BB6A,
+                                ).withOpacity(0.25),
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.verified_user_outlined,
+                            size: 48,
+                            color: Color(0xFF66BB6A),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'All Systems Operational',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 40),
+                          child: Text(
+                            'No active production failures or deployment blocks reported.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Colors.grey.shade400,
+                                  height: 1.4,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: () => appState.loadIncidents(),
+                          icon: const Icon(Icons.sync),
+                          label: const Text('Simulate Webhook Fetch'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E2235),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: const BorderSide(color: Color(0xFF333852)),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   )
-                : const Icon(Icons.refresh, color: Colors.white),
-            onPressed: appState.isLoading
-                ? null
-                : () => appState.loadIncidents(),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildKpiCard(
-                    context,
-                    label: 'ACTIVE INCIDENTS',
-                    value: '${appState.activeIncidentsCount}',
-                    color: const Color(0xFFEF5350),
-                    icon: Icons.notifications_active_outlined,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildKpiCard(
-                    context,
-                    label: 'TRIGGERED ALERTS',
-                    value: '${appState.triggeredAlertsCount}',
-                    color: const Color(0xFFFFB74D),
-                    icon: Icons.error_outline_rounded,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildKpiCard(
-                    context,
-                    label: 'SYSTEM UPTIME',
-                    value: appState.systemUptime,
-                    color: const Color(0xFF66BB6A),
-                    icon: Icons.speed_outlined,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'ACTIVE INFRASTRUCTURE RADAR',
-                style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: () {
-                  if (appState.isLoading) {
-                    return ListView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: 4,
-                      itemBuilder: (context, index) => _buildSkeletonItem(),
-                    );
-                  }
-                  if (incidents.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: ShapeDecoration(
-                              color: const Color(0xFF66BB6A).withOpacity(0.1),
-                              shape: CircleBorder(
-                                side: BorderSide(
-                                  color: const Color(
-                                    0xFF66BB6A,
-                                  ).withOpacity(0.25),
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.verified_user_outlined,
-                              size: 48,
-                              color: Color(0xFF66BB6A),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'All Systems Operational',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          const SizedBox(height: 6),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 40),
-                            child: Text(
-                              'No active production failures or deployment blocks reported.',
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Colors.grey.shade400,
-                                    height: 1.4,
-                                  ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: () => appState.loadIncidents(),
-                            icon: const Icon(Icons.sync),
-                            label: const Text('Simulate Webhook Fetch'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1E2235),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                side: const BorderSide(
-                                  color: Color(0xFF333852),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  return ListView.builder(
+                : ListView.builder(
                     itemCount: incidents.length,
                     physics: const BouncingScrollPhysics(),
                     itemBuilder: (context, index) {
@@ -418,49 +360,95 @@ class HomePage extends StatelessWidget {
                                 ),
                                 Expanded(
                                   child: Padding(
-                                    padding: const EdgeInsets.all(12.0),
+                                    padding: const EdgeInsets.all(12),
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 3,
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 3,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: _getProviderColor(
+                                                      incident.provider,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
                                                   ),
-                                              decoration: BoxDecoration(
-                                                color: _getProviderColor(
-                                                  incident.provider,
+                                                  child: Text(
+                                                    incident
+                                                        .provider
+                                                        .displayName,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 9,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
                                                 ),
-                                                borderRadius:
-                                                    BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                incident.provider.displayName,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.bold,
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  incident.serviceData,
+                                                  style: TextStyle(
+                                                    color: Colors
+                                                        .blueGrey
+                                                        .shade300,
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                                 ),
-                                              ),
+                                              ],
                                             ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                incident.serviceData,
-                                                style: TextStyle(
-                                                  color:
-                                                      Colors.blueGrey.shade300,
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.bold,
+                                            if (incident.assignedTo != null)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Color(
+                                                    incident
+                                                        .assignedTo!
+                                                        .avatarColor,
+                                                  ).withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                  border: Border.all(
+                                                    color: Color(
+                                                      incident
+                                                          .assignedTo!
+                                                          .avatarColor,
+                                                    ).withOpacity(0.3),
+                                                  ),
                                                 ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
+                                                child: Text(
+                                                  incident.assignedTo!.name
+                                                      .split(' ')
+                                                      .first,
+                                                  style: TextStyle(
+                                                    color: Color(
+                                                      incident
+                                                          .assignedTo!
+                                                          .avatarColor,
+                                                    ),
+                                                    fontSize: 8,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
                                               ),
-                                            ),
                                           ],
                                         ),
                                         const SizedBox(height: 8),
@@ -510,6 +498,26 @@ class HomePage extends StatelessWidget {
                                                     fontSize: 10,
                                                   ),
                                                 ),
+                                                if (incident
+                                                    .comments
+                                                    .isNotEmpty) ...[
+                                                  const SizedBox(width: 12),
+                                                  Icon(
+                                                    Icons
+                                                        .chat_bubble_outline_rounded,
+                                                    size: 11,
+                                                    color: Colors.grey.shade500,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    '${incident.comments.length}',
+                                                    style: TextStyle(
+                                                      color:
+                                                          Colors.grey.shade500,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ],
                                               ],
                                             ),
                                             if (incident.status ==
@@ -517,10 +525,14 @@ class HomePage extends StatelessWidget {
                                               SizedBox(
                                                 height: 26,
                                                 child: ElevatedButton(
-                                                  onPressed: () => appState
-                                                      .acknowledgeIncident(
-                                                        incident.id,
-                                                      ),
+                                                  onPressed:
+                                                      appState.currentUserRole ==
+                                                          UserRole.viewer
+                                                      ? null
+                                                      : () => appState
+                                                            .acknowledgeIncident(
+                                                              incident.id,
+                                                            ),
                                                   style: ElevatedButton.styleFrom(
                                                     backgroundColor:
                                                         const Color(0xFFFFB74D),
@@ -593,13 +605,576 @@ class HomePage extends StatelessWidget {
                         ),
                       );
                     },
-                  );
-                }(),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsProgressBar(
+    String label,
+    double percentage,
+    Color color,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const SizedBox(height: 16),
+              Text(
+                '${(percentage * 100).toInt()}%',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
+          const SizedBox(height: 6),
+          LinearProgressIndicator(
+            value: percentage,
+            backgroundColor: const Color(0xFF1E2235),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 8,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsTab(BuildContext context, AppState appState) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('Operational Service Metrics'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141724),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF1E2235)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'MTTA',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            '2.4 Min',
+                            style: TextStyle(
+                              color: Color(0xFFFFB74D),
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Mean Time to Acknowledge',
+                            style: TextStyle(color: Colors.grey, fontSize: 9),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 50,
+                      color: const Color(0xFF1E2235),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'MTTR',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            '14.2 Min',
+                            style: TextStyle(
+                              color: Color(0xFF66BB6A),
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Mean Time to Resolve',
+                            style: TextStyle(color: Colors.grey, fontSize: 9),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          _buildSectionHeader('Incident Volume by Provider'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141724),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF1E2235)),
+            ),
+            child: Column(
+              children: [
+                _buildAnalyticsProgressBar(
+                  'AWS CloudWatch',
+                  0.35,
+                  const Color(0xFFFF9900),
+                ),
+                _buildAnalyticsProgressBar(
+                  'GCP Cloud Monitoring',
+                  0.25,
+                  const Color(0xFF0F9D58),
+                ),
+                _buildAnalyticsProgressBar(
+                  'Azure Monitor',
+                  0.2,
+                  const Color(0xFF007FFF),
+                ),
+                _buildAnalyticsProgressBar(
+                  'GitHub Actions',
+                  0.15,
+                  const Color(0xFF24292E),
+                ),
+                _buildAnalyticsProgressBar(
+                  'PagerDuty',
+                  0.05,
+                  const Color(0xFFDF1D24),
+                ),
+              ],
+            ),
+          ),
+          _buildSectionHeader('Operational Efficiency'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141724),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF1E2235)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Column(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_outline,
+                      color: Color(0xFF66BB6A),
+                      size: 24,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '99.98%',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'SLO Integrity',
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  children: [
+                    const Icon(
+                      Icons.flash_on_rounded,
+                      color: Color(0xFFFFB74D),
+                      size: 24,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '94.2%',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Auto-Remediation',
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  children: [
+                    const Icon(
+                      Icons.groups_outlined,
+                      color: Colors.blueAccent,
+                      size: 24,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '1.8 Min',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Avg Assignment',
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRosterTab(BuildContext context, AppState appState) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('Current On-Call Rotations'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141724),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF1E2235)),
+            ),
+            child: Column(
+              children: appState.teamRoster
+                  .map(
+                    (member) => Column(
+                      children: [
+                        ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Color(
+                              member.avatarColor,
+                            ).withOpacity(0.15),
+                            child: Text(
+                              member.name.split(' ').map((e) => e[0]).join(),
+                              style: TextStyle(
+                                color: Color(member.avatarColor),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            member.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(
+                            member.title,
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 11,
+                            ),
+                          ),
+                          trailing: member.isOnCall
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF66BB6A,
+                                    ).withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: const Color(
+                                        0xFF66BB6A,
+                                      ).withOpacity(0.4),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'ON CALL',
+                                    style: TextStyle(
+                                      color: Color(0xFF66BB6A),
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                        if (member != appState.teamRoster.last)
+                          const Divider(color: Color(0xFF1E2235), indent: 70),
+                      ],
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          _buildSectionHeader('Active Session Role Controls'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141724),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF1E2235)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Quickly switch your user profile permissions below to verify and test role-based constraints throughout the application:',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ChoiceChip(
+                      label: const Text(
+                        'Viewer',
+                        style: TextStyle(fontSize: 10),
+                      ),
+                      selected: appState.currentUserRole == UserRole.viewer,
+                      onSelected: (selected) {
+                        if (selected) {
+                          appState.updateUserRole(UserRole.viewer);
+                        }
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text(
+                        'Responder',
+                        style: TextStyle(fontSize: 10),
+                      ),
+                      selected: appState.currentUserRole == UserRole.responder,
+                      onSelected: (selected) {
+                        if (selected) {
+                          appState.updateUserRole(UserRole.responder);
+                        }
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text(
+                        'Commander',
+                        style: TextStyle(fontSize: 10),
+                      ),
+                      selected: appState.currentUserRole == UserRole.commander,
+                      onSelected: (selected) {
+                        if (selected) {
+                          appState.updateUserRole(UserRole.commander);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F111A),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF1E2235)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        appState.currentUserRole == UserRole.viewer
+                            ? Icons.lock_outline_rounded
+                            : Icons.lock_open_rounded,
+                        size: 16,
+                        color: appState.currentUserRole == UserRole.viewer
+                            ? const Color(0xFFEF5350)
+                            : const Color(0xFF66BB6A),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          appState.currentUserRole == UserRole.viewer
+                              ? 'Viewer Mode: All actions (Acknowledge, Escalate, Resolve, Assign, Comments) are disabled.'
+                              : 'Authorized Responder: Full operational mutations and collaboration is enabled.',
+                          style: TextStyle(
+                            color: appState.currentUserRole == UserRole.viewer
+                                ? const Color(0xFFEF5350)
+                                : const Color(0xFF66BB6A),
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 8),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          color: Colors.blueGrey,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.5,
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = AppState.of(context);
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F111A),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF141724),
+        elevation: 0,
+        title: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFEF5350),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'INCIDENT COMMANDER',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            onPressed: () {
+              context.push('/settings');
+            },
+          ),
+          IconButton(
+            icon: appState.isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.refresh, color: Colors.white),
+            onPressed: appState.isLoading
+                ? null
+                : () => appState.loadIncidents(),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: IndexedStack(
+          index: appState.currentTabIndex,
+          children: [
+            _buildRadarTab(context, appState),
+            _buildAnalyticsTab(context, appState),
+            _buildRosterTab(context, appState),
+          ],
+        ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: const Color(0xFF141724),
+        currentIndex: appState.currentTabIndex,
+        onTap: (index) => appState.setTabIndex(index),
+        selectedItemColor: Colors.blueAccent,
+        unselectedItemColor: Colors.blueGrey,
+        selectedLabelStyle: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+        unselectedLabelStyle: const TextStyle(fontSize: 10),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.radar_rounded),
+            label: 'Incident Radar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart_rounded),
+            label: 'Analytics',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.groups_outlined),
+            label: 'Team Roster',
+          ),
+        ],
       ),
     );
   }

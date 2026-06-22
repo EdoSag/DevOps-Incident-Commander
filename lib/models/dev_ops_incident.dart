@@ -1,5 +1,7 @@
 import 'package:devops_incident_commander_dashboard/incident_status.dart';
 import 'package:devops_incident_commander_dashboard/incident_provider.dart';
+import 'package:devops_incident_commander_dashboard/models/team_member.dart';
+import 'package:devops_incident_commander_dashboard/models/incident_comment.dart';
 import 'package:nowa_runtime/nowa_runtime.dart';
 
 @NowaGenerated()
@@ -14,6 +16,8 @@ class DevOpsIncident {
     required this.createdAt,
     required this.provider,
     this.resolvedAt,
+    this.assignedTo,
+    this.comments = const [],
   });
 
   factory DevOpsIncident.fromJson(Map<String, dynamic> json) {
@@ -35,6 +39,12 @@ class DevOpsIncident {
       resolvedAt: json['resolvedAt'] != null
           ? DateTime.parse(json['resolvedAt'] as String)
           : null,
+      assignedTo: json['assignedTo'] != null
+          ? TeamMember.fromJson(json['assignedTo'] as Map<String, dynamic>)
+          : null,
+      comments: (json['comments'] as List<dynamic>? ?? [])
+          .map((e) => IncidentComment.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -166,6 +176,10 @@ class DevOpsIncident {
 
   final DateTime? resolvedAt;
 
+  final TeamMember? assignedTo;
+
+  final List<IncidentComment> comments;
+
   DevOpsIncident copyWith({
     String? id,
     String? title,
@@ -176,6 +190,8 @@ class DevOpsIncident {
     DateTime? createdAt,
     IncidentProvider? provider,
     DateTime? resolvedAt,
+    TeamMember? assignedTo,
+    List<IncidentComment>? comments,
   }) {
     return DevOpsIncident(
       id: id ?? this.id,
@@ -187,6 +203,8 @@ class DevOpsIncident {
       createdAt: createdAt ?? this.createdAt,
       provider: provider ?? this.provider,
       resolvedAt: resolvedAt ?? this.resolvedAt,
+      assignedTo: assignedTo ?? this.assignedTo,
+      comments: comments ?? this.comments,
     );
   }
 
@@ -201,6 +219,8 @@ class DevOpsIncident {
       'createdAt': createdAt.toIso8601String(),
       'provider': provider.name,
       'resolvedAt': resolvedAt?.toIso8601String(),
+      'assignedTo': assignedTo?.toJson(),
+      'comments': comments.map((e) => e.toJson()).toList(),
     };
   }
 }

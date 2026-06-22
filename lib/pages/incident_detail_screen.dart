@@ -1,17 +1,41 @@
 import 'package:flutter/material.dart';
-import 'package:devops_incident_commander_dashboard/models/dev_ops_incident.dart';
 import 'package:nowa_runtime/nowa_runtime.dart' hide Border, BoxDecoration;
+import 'package:devops_incident_commander_dashboard/models/dev_ops_incident.dart';
 import 'package:devops_incident_commander_dashboard/incident_provider.dart';
 import 'package:devops_incident_commander_dashboard/incident_status.dart';
+import 'package:devops_incident_commander_dashboard/models/incident_comment.dart';
 import 'package:devops_incident_commander_dashboard/globals/app_state.dart';
+import 'package:devops_incident_commander_dashboard/user_role.dart';
 import 'package:go_router/go_router.dart';
 
 @NowaGenerated()
-class IncidentDetailScreen extends StatelessWidget {
+class IncidentDetailScreen extends StatefulWidget {
   @NowaGenerated({'loader': 'auto-constructor'})
   const IncidentDetailScreen({super.key, required this.incident});
 
   final DevOpsIncident incident;
+
+  @override
+  State<IncidentDetailScreen> createState() {
+    return _IncidentDetailScreenState();
+  }
+}
+
+@NowaGenerated()
+class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
+  late final TextEditingController _commentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _commentController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
 
   String _getMockStackTrace(DevOpsIncident inc) {
     final timestamp = inc.createdAt.toIso8601String();
@@ -136,13 +160,57 @@ class IncidentDetailScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildCommentBubble(IncidentComment comment) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F111A),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF1E2235)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                comment.userName,
+                style: const TextStyle(
+                  color: Colors.blueAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+              Text(
+                '${comment.createdAt.hour.toString().padLeft(2, '0')}:${comment.createdAt.minute.toString().padLeft(2, '0')}',
+                style: const TextStyle(color: Colors.grey, fontSize: 9),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            comment.text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = AppState.of(context);
     final freshIncident = appState.incidents.firstWhere(
-      (i) => i.id == incident.id,
-      orElse: () => incident,
+      (i) => i.id == widget.incident.id,
+      orElse: () => widget.incident,
     );
+    final isViewer = appState.currentUserRole == UserRole.viewer;
     final isTriggered = freshIncident.status == IncidentStatus.triggered;
     final isAcknowledged = freshIncident.status == IncidentStatus.acknowledged;
     final isEscalated = freshIncident.status == IncidentStatus.escalated;
@@ -199,6 +267,33 @@ class IncidentDetailScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
+            if (isViewer)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 6,
+                  horizontal: 16,
+                ),
+                color: Colors.red.shade900.withOpacity(0.9),
+                child: const Row(
+                  children: const [
+                    Icon(
+                      Icons.lock_outline_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'READ-ONLY VIEWER MODE: Actions and comments are restricted.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -227,6 +322,7 @@ class IncidentDetailScreen extends StatelessWidget {
                                     ?.copyWith(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
+                                      fontSize: 18,
                                     ),
                               ),
                               const SizedBox(height: 6),
@@ -278,7 +374,86 @@ class IncidentDetailScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF141724),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF1E2235)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.person_pin_rounded,
+                                color: Colors.blueAccent.shade400,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Incident Owner',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    freshIncident.assignedTo?.name ??
+                                        'Unassigned',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              icon: const Icon(
+                                Icons.assignment_ind_outlined,
+                                color: Colors.blueAccent,
+                              ),
+                              onChanged: isViewer
+                                  ? null
+                                  : (value) {
+                                      if (value != null) {
+                                        appState.assignIncident(
+                                          freshIncident.id,
+                                          value!,
+                                        );
+                                      }
+                                    },
+                              items: appState.teamRoster
+                                  .map(
+                                    (member) => DropdownMenuItem<String>(
+                                      value: member.id,
+                                      child: Text(
+                                        member.name,
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -289,10 +464,10 @@ class IncidentDetailScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'DESCRIPTION',
                             style: TextStyle(
-                              color: Colors.grey.shade500,
+                              color: Colors.blueGrey,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.2,
@@ -310,11 +485,11 @@ class IncidentDetailScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    Text(
+                    const SizedBox(height: 16),
+                    const Text(
                       'STACK TRACE / OPERATIONAL LOGS',
                       style: TextStyle(
-                        color: Colors.grey.shade500,
+                        color: Colors.blueGrey,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.2,
@@ -330,7 +505,7 @@ class IncidentDetailScreen extends StatelessWidget {
                         border: Border.all(color: Colors.grey.shade900),
                       ),
                       child: Container(
-                        constraints: const BoxConstraints(maxHeight: 200),
+                        constraints: const BoxConstraints(maxHeight: 180),
                         child: SingleChildScrollView(
                           child: SelectableText(
                             _getMockStackTrace(freshIncident),
@@ -344,17 +519,131 @@ class IncidentDetailScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'INCIDENT LIFECYCLE TIMELINE',
+                    const SizedBox(height: 20),
+                    const Text(
+                      'COLLABORATIVE WAR ROOM NOTES',
                       style: TextStyle(
-                        color: Colors.grey.shade500,
+                        color: Colors.blueGrey,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF141724),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF1E2235)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (freshIncident.comments.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Text(
+                                'No war-room logs written. Be the first to comment.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            )
+                          else
+                            Container(
+                              constraints: const BoxConstraints(maxHeight: 180),
+                              child: ListView(
+                                shrinkWrap: true,
+                                physics: const BouncingScrollPhysics(),
+                                children: freshIncident.comments
+                                    .map(
+                                      (comment) => _buildCommentBubble(comment),
+                                    )
+                                    .toList(),
+                              ),
+                            ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _commentController,
+                                  enabled: !isViewer,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: isViewer
+                                        ? 'Commenting is restricted in Viewer mode.'
+                                        : 'Enter war-room update note...',
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 11,
+                                    ),
+                                    filled: true,
+                                    fillColor: const Color(0xFF0F111A),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFF1E2235),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: const BorderSide(
+                                        color: Colors.blueAccent,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: isViewer
+                                    ? null
+                                    : () {
+                                        if (_commentController.text
+                                            .trim()
+                                            .isNotEmpty) {
+                                          appState.addIncidentComment(
+                                            freshIncident.id,
+                                            _commentController.text,
+                                          );
+                                          _commentController.clear();
+                                          FocusScope.of(context).unfocus();
+                                        }
+                                      },
+                                icon: const Icon(
+                                  Icons.send_rounded,
+                                  color: Colors.blueAccent,
+                                  size: 20,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'INCIDENT LIFECYCLE TIMELINE',
+                      style: TextStyle(
+                        color: Colors.blueGrey,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -420,7 +709,7 @@ class IncidentDetailScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: isResolved || isEscalated
+                      onPressed: isResolved || isEscalated || isViewer
                           ? null
                           : () async {
                               await appState.escalateIncident(freshIncident.id);
@@ -442,7 +731,7 @@ class IncidentDetailScreen extends StatelessWidget {
                         foregroundColor: Colors.deepOrange.shade400,
                         disabledForegroundColor: Colors.grey.shade700,
                         side: BorderSide(
-                          color: isResolved || isEscalated
+                          color: isResolved || isEscalated || isViewer
                               ? Colors.grey.shade800
                               : Colors.deepOrange.shade600,
                         ),
@@ -456,7 +745,7 @@ class IncidentDetailScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: isResolved
+                      onPressed: isResolved || isViewer
                           ? null
                           : () async {
                               await appState.resolveIncident(freshIncident.id);
