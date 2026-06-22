@@ -2,7 +2,7 @@
     "version": "3.9.3",
     "app": {
         "name": "devops_incident_commander_dashboard",
-        "bundleId": "com.example.devopsincidentcommanderdashboard"
+        "bundleId": "dev.sagron.devopsincidentcommander"
     },
     "main": [
         {

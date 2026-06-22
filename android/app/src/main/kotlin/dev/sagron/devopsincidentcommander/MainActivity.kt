@@ -1,4 +1,4 @@
-package com.example.devopsincidentcommanderdashboard
+package dev.sagron.devopsincidentcommander
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 
