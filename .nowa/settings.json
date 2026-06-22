@@ -16,5 +16,13 @@
     "experimental": {
         "load_packages": true
     },
-    "permissions": []
+    "permissions": [
+        {
+            "key": "NSCameraUsageDescription",
+            "value": "Camera permission is required to take photos and videos."
+        },
+        {
+            "key": "android.permission.CAMERA"
+        }
+    ]
 }
