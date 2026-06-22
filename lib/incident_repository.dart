@@ -364,7 +364,7 @@ class IncidentRepository {
     }
   }
 
-  Future<List<DevOpsIncident>> fetchRealAndSimulatedIncidents({
+  Future<List<DevOpsIncident>> fetchRealIncidents({
     required String githubOwner,
     required String githubRepo,
     required String githubToken,
@@ -372,16 +372,13 @@ class IncidentRepository {
     required String awsAccessKey,
     required String awsSecretKey,
     required String awsRegion,
-    required bool awsSimulated,
     required String gcpProjectId,
     required String gcpTokenOrKey,
     required bool gcpIsApiKey,
-    required bool gcpSimulated,
     required String azureTenantId,
     required String azureClientId,
     required String azureClientSecret,
     required String azureSubscriptionId,
-    required bool azureSimulated,
   }) async {
     final List<DevOpsIncident> list = [];
     if (githubOwner.isNotEmpty && githubRepo.isNotEmpty) {
@@ -418,6 +415,7 @@ class IncidentRepository {
                   serviceData: 'GitHub: ${githubOwner}/${githubRepo}',
                   createdAt: createdAt,
                   provider: IncidentProvider.githubActions,
+                  rawProviderPayload: run as Map<String, dynamic>,
                 ),
               );
             }
@@ -466,6 +464,7 @@ class IncidentRepository {
                 serviceData: 'Service: ${serviceName}',
                 createdAt: createdAt,
                 provider: IncidentProvider.pagerDuty,
+                rawProviderPayload: inc as Map<String, dynamic>,
               ),
             );
           }
@@ -528,6 +527,7 @@ class IncidentRepository {
                   serviceData: 'AWS: ${namespace}',
                   createdAt: createdAt,
                   provider: IncidentProvider.aws,
+                  rawProviderPayload: alarm as Map<String, dynamic>,
                 ),
               );
             }
@@ -591,6 +591,7 @@ class IncidentRepository {
                     serviceData: 'Azure: ${targetResource.split('/').last}',
                     createdAt: createdAt,
                     provider: IncidentProvider.azure,
+                    rawProviderPayload: alert as Map<String, dynamic>,
                   ),
                 );
               }
@@ -646,6 +647,7 @@ class IncidentRepository {
                     const Duration(minutes: 10),
                   ),
                   provider: IncidentProvider.gcp,
+                  rawProviderPayload: policy as Map<String, dynamic>,
                 ),
               );
             }
@@ -654,52 +656,6 @@ class IncidentRepository {
       } catch (e) {
         debugPrint('Error fetching GCP: ${e}');
       }
-    }
-    final now = DateTime.now();
-    if (awsSimulated) {
-      list.add(
-        DevOpsIncident(
-          id: 'aws-sim-01',
-          title: 'EC2 CPU Utilization Spike > 98%',
-          description:
-              'High load detected on EC2 instance i-0f12a. Auto-scaling failed to spawn replacement instance due to sub-net IP exhaustion in us-east-1.',
-          status: IncidentStatus.triggered,
-          urgency: 'critical',
-          serviceData: 'AWS EC2 Instance: i-0f12a',
-          createdAt: now.subtract(const Duration(minutes: 10)),
-          provider: IncidentProvider.aws,
-        ),
-      );
-    }
-    if (gcpSimulated) {
-      list.add(
-        DevOpsIncident(
-          id: 'gcp-sim-02',
-          title: 'Cloud Run Container Memory Exhaustion',
-          description:
-              'Out of Memory (OOM) errors in auth-api. Multiple container instances crashed consecutively. Request latency surged to 5.2s.',
-          status: IncidentStatus.triggered,
-          urgency: 'high',
-          serviceData: 'GCP Cloud Run: auth-api',
-          createdAt: now.subtract(const Duration(minutes: 25)),
-          provider: IncidentProvider.gcp,
-        ),
-      );
-    }
-    if (azureSimulated) {
-      list.add(
-        DevOpsIncident(
-          id: 'azure-sim-03',
-          title: 'Azure DB Primary Replica Timeout',
-          description:
-              'PostgreSQL master node replication lag exceeded 15 seconds. Active connections dropped and database write transactions are failing.',
-          status: IncidentStatus.triggered,
-          urgency: 'critical',
-          serviceData: 'Azure DB Cluster: postgres-primary',
-          createdAt: now.subtract(const Duration(minutes: 45)),
-          provider: IncidentProvider.azure,
-        ),
-      );
     }
     list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return list;

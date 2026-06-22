@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:nowa_runtime/nowa_runtime.dart' hide Border, BoxDecoration;
 import 'package:devops_incident_commander_dashboard/models/dev_ops_incident.dart';
@@ -37,19 +38,15 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
     super.dispose();
   }
 
-  String _getMockStackTrace(DevOpsIncident inc) {
-    final timestamp = inc.createdAt.toIso8601String();
-    switch (inc.provider) {
-      case IncidentProvider.aws:
-        return '[FATAL] ${timestamp} - AWS CloudWatch Alert Triggered\n[ERROR] AlarmName: ${inc.title}\n[ERROR] MetricName: CPUUtilization\n[ERROR] Dimensions: [InstanceId: i-0f12a]\n[WARN] Connection pool exhausted on target server. Active: 1024, Pending: 450.\n[WARN] health_check.go:82 - HTTP Probe failed: Timeout of 5000ms exceeded.\nat github.com/ops/auth-service/v2/db.getConnection(db.go:42)\nat github.com/ops/auth-service/v2/handlers.LoginHandler(login.go:108)\n[SYS-ALERT] Auto-scaling trigger initiated, but target subnet is out of IPs.\n[SYS-WARN] Subnet ID: subnet-0f12a89 - 0 available IP addresses in IPAM.\n';
-      case IncidentProvider.gcp:
-        return '[FATAL] ${timestamp} - GCP Cloud Monitoring Incident\n[ERROR] Policy: ${inc.title}\n[ERROR] Resource Type: gcloud_run_revision\n[ERROR] Container crashed: Out of Memory (OOM) Killed.\n[INFO] Container instance exited with code 137 (OOMKilled).\n[WARN] Heap size exceeded 512MB limit. Memory utilization at 104.2%.\nat /app/node_modules/express/lib/router/index.js:284:7\nat /app/server.js:45:12\n[SYS-INFO] Route fallback initiated. Latency threshold exceeded 5000ms.\n';
-      case IncidentProvider.azure:
-        return '[FATAL] ${timestamp} - Azure Monitor Alert Rule Fired\n[ERROR] AlertRule: ${inc.title}\n[ERROR] TargetResource: /subscriptions/abc/resourceGroups/prod/providers/Microsoft.DBforPostgreSQL\n[WARN] PostgreSQL replication lag exceeded threshold of 15s. Current lag: 42.1s.\n[WARN] Replication stream broken between master replica and read node.\n[ERROR] Connection failed: connection timed out.\nat Microsoft.Azure.PostgreSQL.Connection.Open()\nat App.DataAccess.SqlConnector.ExecuteQuery(String sql)\n';
-      case IncidentProvider.githubActions:
-        return '[FATAL] ${timestamp} - GitHub Action Workflow Run Failed\n[INFO] Repo: ${inc.serviceData}\n[INFO] Workflow: Production Build & Deploy\n[INFO] Job: deploy_to_prod (Run #1489)\n[ERROR] Step: "Run Migrations" returned exit code 1.\n[ERROR] stderr: psql: error: connection to server on port 5432 failed: Connection refused.\n[ERROR] Is the database running on host and accepting TCP/IP connections?\n[SYS-WARN] Workflow execution halted. Automatic rollback triggered.\n';
-      case IncidentProvider.pagerDuty:
-        return '[FATAL] ${timestamp} - PagerDuty Webhook v3 Incident Triggered\n[INFO] Service: ${inc.serviceData}\n[INFO] Alert Summary: ${inc.title}\n[WARN] Third-party payment gateway integration reporting 504 Gateway Timeouts.\n[WARN] HTTP POST to https://api.stripe.com/v3/charges failed. Retry #3.\n[ERROR] Rate of transaction failure exceeded 12% in the last 5 minutes.\nat Stripe.WebhookHandler.ProcessEvent(StripeEvent event)\nat BillingService.Controllers.WebhookController.Post()\n';
+  String? _getRawPayloadText(DevOpsIncident inc) {
+    final payload = inc.rawProviderPayload;
+    if (payload == null || payload.isEmpty) {
+      return null;
+    }
+    try {
+      return const JsonEncoder.withIndent('  ').convert(payload);
+    } catch (e) {
+      return payload.toString();
     }
   }
 
@@ -406,7 +403,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    freshIncident.assignedTo?.name ??
+                                    freshIncident.assignedToMember
+                                            ?.resolvedDisplayName ??
                                         'Unassigned',
                                     style: const TextStyle(
                                       color: Colors.white,
@@ -430,16 +428,16 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                                       if (value != null) {
                                         appState.assignIncident(
                                           freshIncident.id,
-                                          value!,
+                                          value,
                                         );
                                       }
                                     },
-                              items: appState.teamRoster
+                              items: appState.organizationMembers
                                   .map(
                                     (member) => DropdownMenuItem<String>(
                                       value: member.id,
                                       child: Text(
-                                        member.name,
+                                        member.resolvedDisplayName,
                                         style: const TextStyle(
                                           color: Colors.black,
                                           fontSize: 12,
@@ -487,7 +485,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'STACK TRACE / OPERATIONAL LOGS',
+                      'RAW PROVIDER PAYLOAD',
                       style: TextStyle(
                         color: Colors.blueGrey,
                         fontSize: 10,
@@ -507,14 +505,29 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                       child: Container(
                         constraints: const BoxConstraints(maxHeight: 180),
                         child: SingleChildScrollView(
-                          child: SelectableText(
-                            _getMockStackTrace(freshIncident),
-                            style: const TextStyle(
-                              color: Color(0xFFD4D4D4),
-                              fontFamily: 'Courier',
-                              fontSize: 11,
-                              height: 1.4,
-                            ),
+                          child: Builder(
+                            builder: (context) {
+                              final rawText = _getRawPayloadText(freshIncident);
+                              if (rawText == null) {
+                                return const Text(
+                                  'No Available Data',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                );
+                              }
+                              return SelectableText(
+                                rawText,
+                                style: const TextStyle(
+                                  color: Color(0xFFD4D4D4),
+                                  fontFamily: 'Courier',
+                                  fontSize: 11,
+                                  height: 1.4,
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:devops_incident_commander_dashboard/user_role.dart';
 import 'package:devops_incident_commander_dashboard/globals/app_state.dart';
+import 'package:devops_incident_commander_dashboard/models/org_invite.dart';
 import 'package:go_router/go_router.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -16,8 +17,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late final TextEditingController _emailController;
 
   late final TextEditingController _passwordController;
-
-  UserRole _authRegisterRole = UserRole.responder;
 
   bool _isSignUpMode = false;
 
@@ -48,12 +47,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late final TextEditingController _gcpTokenOrKeyController;
 
   bool _gcpIsApiKey = true;
-
-  bool _awsSimulated = true;
-
-  bool _gcpSimulated = true;
-
-  bool _azureSimulated = true;
 
   @override
   void initState() {
@@ -91,9 +84,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       text: appState.gcpTokenOrKey,
     );
     _gcpIsApiKey = appState.gcpIsApiKey;
-    _awsSimulated = appState.awsSimulated;
-    _gcpSimulated = appState.gcpSimulated;
-    _azureSimulated = appState.azureSimulated;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       appState.resetTestResults();
     });
@@ -140,12 +130,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String hint,
     required IconData icon,
     bool obscureText = false,
+    bool enabled = true,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: controller,
         obscureText: obscureText,
+        enabled: enabled,
         style: const TextStyle(color: Colors.white, fontSize: 13),
         decoration: InputDecoration(
           labelText: label,
@@ -177,9 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool? success,
     String? message,
   }) {
-    if (!isLoading &&
-        success == null &&
-        (message == null || message!.isEmpty)) {
+    if (!isLoading && success == null && (message == null || message.isEmpty)) {
       return const SizedBox.shrink();
     }
     Color bgColor = const Color(0xFF141724);
@@ -237,9 +227,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
-    ;
-    ;
-    ;
   }
 
   Widget _buildAuthPortal(AppState appState) {
@@ -295,47 +282,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.lock_outline_rounded,
                 obscureText: true,
               ),
-              if (_isSignUpMode) ...[
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Text(
-                      'Default Role: ',
-                      style: TextStyle(color: Colors.grey, fontSize: 11),
-                    ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text(
-                        'Responder',
-                        style: TextStyle(fontSize: 10),
-                      ),
-                      selected: _authRegisterRole == UserRole.responder,
-                      onSelected: (selected) {
-                        if (selected) {
-                          setState(
-                            () => _authRegisterRole = UserRole.responder,
-                          );
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text(
-                        'Commander',
-                        style: TextStyle(fontSize: 10),
-                      ),
-                      selected: _authRegisterRole == UserRole.commander,
-                      onSelected: (selected) {
-                        if (selected) {
-                          setState(
-                            () => _authRegisterRole = UserRole.commander,
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ],
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: appState.isLoading
@@ -346,7 +292,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             await appState.register(
                               _emailController.text.trim(),
                               _passwordController.text.trim(),
-                              _authRegisterRole,
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -415,10 +360,292 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildOrganizationSection(AppState appState) {
+    final isCommander = appState.currentUserRole == UserRole.commander;
+    final org = appState.currentOrganization;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111420),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1E2235)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.apartment_rounded, color: Colors.blueAccent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      org?.name ?? 'No Available Data',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      '${appState.organizationMembers.length} member${appState.organizationMembers.length == 1 ? '' : 's'} · Your role: ${appState.currentUserRole.displayName}',
+                      style: const TextStyle(color: Colors.grey, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _showMembersSheet(context, appState),
+                icon: const Icon(Icons.groups_outlined, size: 16),
+                label: const Text('Members', style: TextStyle(fontSize: 11)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Color(0xFF333852)),
+                ),
+              ),
+              if (isCommander)
+                OutlinedButton.icon(
+                  onPressed: () => _showInvitesSheet(context, appState),
+                  icon: const Icon(Icons.link_rounded, size: 16),
+                  label: const Text('Invites', style: TextStyle(fontSize: 11)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Color(0xFF333852)),
+                  ),
+                ),
+              if (isCommander)
+                OutlinedButton.icon(
+                  onPressed: () => context.push('/org-scan'),
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
+                  label: const Text(
+                    'Scan QR to Add',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Color(0xFF333852)),
+                  ),
+                ),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await appState.leaveOrganization();
+                },
+                icon: const Icon(Icons.logout_rounded, size: 16),
+                label: const Text(
+                  'Leave Organization',
+                  style: TextStyle(fontSize: 11),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red.shade400,
+                  side: BorderSide(color: Colors.red.withOpacity(0.4)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMembersSheet(BuildContext context, AppState appState) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111420),
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            final isCommander = appState.currentUserRole == UserRole.commander;
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'ORGANIZATION MEMBERS',
+                    style: TextStyle(
+                      color: Colors.blueGrey,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 400),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: appState.organizationMembers.length,
+                      itemBuilder: (context, index) {
+                        final member = appState.organizationMembers[index];
+                        return ListTile(
+                          title: Text(
+                            member.resolvedDisplayName,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          subtitle: Text(
+                            member.role.displayName,
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                          trailing: isCommander
+                              ? PopupMenuButton<String>(
+                                  icon: const Icon(
+                                    Icons.more_vert,
+                                    color: Colors.grey,
+                                  ),
+                                  onSelected: (value) async {
+                                    if (value == 'remove') {
+                                      await appState.removeMember(member.id);
+                                    } else {
+                                      final newRole = UserRole.values.firstWhere(
+                                        (r) => r.name == value,
+                                      );
+                                      await appState.updateMemberRole(
+                                        member.id,
+                                        newRole,
+                                      );
+                                    }
+                                    setSheetState(() {});
+                                  },
+                                  itemBuilder: (context) => [
+                                    for (final role in UserRole.values)
+                                      PopupMenuItem(
+                                        value: role.name,
+                                        child: Text(
+                                          'Set as ${role.displayName}',
+                                        ),
+                                      ),
+                                    const PopupMenuItem(
+                                      value: 'remove',
+                                      child: Text('Remove from team'),
+                                    ),
+                                  ],
+                                )
+                              : null,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showInvitesSheet(BuildContext context, AppState appState) {
+    appState.loadInvites();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111420),
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'INVITE LINKS',
+                        style: TextStyle(
+                          color: Colors.blueGrey,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () async {
+                          await appState.createInvite();
+                          setSheetState(() {});
+                        },
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text(
+                          'New Invite',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 400),
+                    child: appState.invites.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Text(
+                              'No Available Data',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: appState.invites.length,
+                            itemBuilder: (context, index) {
+                              final OrgInvite invite = appState.invites[index];
+                              return ListTile(
+                                title: Text(
+                                  invite.code,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontFamily: 'Courier',
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  invite.isActive
+                                      ? 'Active · Grants ${invite.roleToGrant.displayName} · Used ${invite.useCount} time(s)'
+                                      : 'Inactive',
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                                trailing: invite.isActive
+                                    ? IconButton(
+                                        icon: const Icon(
+                                          Icons.block,
+                                          color: Colors.redAccent,
+                                        ),
+                                        onPressed: () async {
+                                          await appState.revokeInvite(invite.id);
+                                          setSheetState(() {});
+                                        },
+                                      )
+                                    : null,
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = AppState.of(context);
     final user = appState.currentUser;
+    final isCommander = appState.currentUserRole == UserRole.commander;
     return Scaffold(
       backgroundColor: const Color(0xFF0F111A),
       appBar: AppBar(
@@ -481,7 +708,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        user?.email ?? 'Active Session',
+                                        user.email ?? 'Active Session',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
@@ -521,85 +748,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _buildSectionHeader('Profile Permissions Tester'),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF111420),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFF1E2235),
+                          _buildSectionHeader('Organization'),
+                          _buildOrganizationSection(appState),
+                          if (!isCommander)
+                            Container(
+                              margin: const EdgeInsets.only(top: 16),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.amber.withOpacity(0.3),
+                                ),
+                              ),
+                              child: const Text(
+                                'Only a Commander can edit integration credentials. Ask your commander to update these below.',
+                                style: TextStyle(
+                                  color: Colors.amber,
+                                  fontSize: 11,
+                                ),
                               ),
                             ),
-                            child: Row(
-                              children: [
-                                const Text(
-                                  'Active Role: ',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      ChoiceChip(
-                                        label: const Text(
-                                          'Viewer',
-                                          style: TextStyle(fontSize: 9),
-                                        ),
-                                        selected:
-                                            appState.currentUserRole ==
-                                            UserRole.viewer,
-                                        onSelected: (selected) {
-                                          if (selected) {
-                                            appState.updateUserRole(
-                                              UserRole.viewer,
-                                            );
-                                          }
-                                        },
-                                      ),
-                                      ChoiceChip(
-                                        label: const Text(
-                                          'Responder',
-                                          style: TextStyle(fontSize: 9),
-                                        ),
-                                        selected:
-                                            appState.currentUserRole ==
-                                            UserRole.responder,
-                                        onSelected: (selected) {
-                                          if (selected) {
-                                            appState.updateUserRole(
-                                              UserRole.responder,
-                                            );
-                                          }
-                                        },
-                                      ),
-                                      ChoiceChip(
-                                        label: const Text(
-                                          'Commander',
-                                          style: TextStyle(fontSize: 9),
-                                        ),
-                                        selected:
-                                            appState.currentUserRole ==
-                                            UserRole.commander,
-                                        onSelected: (selected) {
-                                          if (selected) {
-                                            appState.updateUserRole(
-                                              UserRole.commander,
-                                            );
-                                          }
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                           _buildSectionHeader('GitHub Actions'),
                           Container(
                             padding: const EdgeInsets.all(14),
@@ -618,12 +787,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   label: 'Repository Owner / Organization',
                                   hint: 'e.g., flutter',
                                   icon: Icons.business,
+                                  enabled: isCommander,
                                 ),
                                 _buildTextField(
                                   controller: _ghRepoController,
                                   label: 'Repository Name',
                                   hint: 'e.g., flutter',
                                   icon: Icons.code,
+                                  enabled: isCommander,
                                 ),
                                 _buildTextField(
                                   controller: _ghTokenController,
@@ -631,6 +802,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   hint: 'ghp_xxxxxxxxxxxxxxxxxxxxxxxx',
                                   icon: Icons.vpn_key_outlined,
                                   obscureText: true,
+                                  enabled: isCommander,
                                 ),
                                 const SizedBox(height: 4),
                                 ElevatedButton.icon(
@@ -686,6 +858,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   hint: 'y_xxxxxxxxxxxxxxxxxxxxxx',
                                   icon: Icons.security_rounded,
                                   obscureText: true,
+                                  enabled: isCommander,
                                 ),
                                 const SizedBox(height: 4),
                                 ElevatedButton.icon(
@@ -740,6 +913,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   label: 'AWS Access Key ID',
                                   hint: 'AKIAxxxxxxxxxxxxxxxx',
                                   icon: Icons.key_rounded,
+                                  enabled: isCommander,
                                 ),
                                 _buildTextField(
                                   controller: _awsSecretKeyController,
@@ -748,12 +922,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
                                   icon: Icons.vpn_key_rounded,
                                   obscureText: true,
+                                  enabled: isCommander,
                                 ),
                                 _buildTextField(
                                   controller: _awsRegionController,
                                   label: 'AWS Region',
                                   hint: 'us-east-1',
                                   icon: Icons.public,
+                                  enabled: isCommander,
                                 ),
                                 const SizedBox(height: 4),
                                 ElevatedButton.icon(
@@ -808,12 +984,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   label: 'Azure Tenant ID',
                                   hint: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
                                   icon: Icons.corporate_fare_rounded,
+                                  enabled: isCommander,
                                 ),
                                 _buildTextField(
                                   controller: _azureClientIdController,
                                   label: 'Azure Client / Application ID',
                                   hint: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
                                   icon: Icons.account_box_rounded,
+                                  enabled: isCommander,
                                 ),
                                 _buildTextField(
                                   controller: _azureClientSecretController,
@@ -821,12 +999,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   hint: 'secret_key_string',
                                   icon: Icons.vpn_key_rounded,
                                   obscureText: true,
+                                  enabled: isCommander,
                                 ),
                                 _buildTextField(
                                   controller: _azureSubscriptionIdController,
                                   label: 'Azure Subscription ID',
                                   hint: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
                                   icon: Icons.assignment_rounded,
+                                  enabled: isCommander,
                                 ),
                                 const SizedBox(height: 4),
                                 ElevatedButton.icon(
@@ -886,6 +1066,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   label: 'GCP Project ID',
                                   hint: 'e.g., project-prod-102',
                                   icon: Icons.api_rounded,
+                                  enabled: isCommander,
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 12),
@@ -905,11 +1086,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           style: TextStyle(fontSize: 10),
                                         ),
                                         selected: _gcpIsApiKey,
-                                        onSelected: (selected) {
-                                          if (selected) {
-                                            setState(() => _gcpIsApiKey = true);
-                                          }
-                                        },
+                                        onSelected: !isCommander
+                                            ? null
+                                            : (selected) {
+                                                if (selected) {
+                                                  setState(
+                                                    () => _gcpIsApiKey = true,
+                                                  );
+                                                }
+                                              },
                                       ),
                                       const SizedBox(width: 8),
                                       ChoiceChip(
@@ -918,13 +1103,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           style: TextStyle(fontSize: 10),
                                         ),
                                         selected: !_gcpIsApiKey,
-                                        onSelected: (selected) {
-                                          if (selected) {
-                                            setState(
-                                              () => _gcpIsApiKey = false,
-                                            );
-                                          }
-                                        },
+                                        onSelected: !isCommander
+                                            ? null
+                                            : (selected) {
+                                                if (selected) {
+                                                  setState(
+                                                    () => _gcpIsApiKey = false,
+                                                  );
+                                                }
+                                              },
                                       ),
                                     ],
                                   ),
@@ -939,6 +1126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       : 'ya29.A0ARxxxxxxxxxxxxxxxxxxxxxx',
                                   icon: Icons.vpn_key_rounded,
                                   obscureText: true,
+                                  enabled: isCommander,
                                 ),
                                 const SizedBox(height: 4),
                                 ElevatedButton.icon(
@@ -976,209 +1164,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ],
                             ),
                           ),
-                          _buildSectionHeader('Cloud Monitoring Simulators'),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF111420),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFF1E2235),
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: const [
-                                          Text(
-                                            'Simulate AWS CloudWatch',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          SizedBox(height: 2),
-                                          Text(
-                                            'Generates mock alarms from AWS EC2/RDS metrics.',
-                                            style: TextStyle(
-                                              color: Colors.grey,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Switch(
-                                      value: _awsSimulated,
-                                      onChanged: (value) =>
-                                          setState(() => _awsSimulated = value),
-                                      activeColor: Colors.orange.shade700,
-                                    ),
-                                  ],
-                                ),
-                                const Divider(
-                                  color: Color(0xFF1E2235),
-                                  height: 20,
-                                ),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: const [
-                                          Text(
-                                            'Simulate GCP Cloud Monitoring',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          SizedBox(height: 2),
-                                          Text(
-                                            'Generates mock resource container memory OOM failures.',
-                                            style: TextStyle(
-                                              color: Colors.grey,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Switch(
-                                      value: _gcpSimulated,
-                                      onChanged: (value) =>
-                                          setState(() => _gcpSimulated = value),
-                                      activeColor: Colors.green.shade600,
-                                    ),
-                                  ],
-                                ),
-                                const Divider(
-                                  color: Color(0xFF1E2235),
-                                  height: 20,
-                                ),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: const [
-                                          Text(
-                                            'Simulate Azure Monitor',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          SizedBox(height: 2),
-                                          Text(
-                                            'Generates mock PostgreSQL replica sync timeouts.',
-                                            style: TextStyle(
-                                              color: Colors.grey,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Switch(
-                                      value: _azureSimulated,
-                                      onChanged: (value) => setState(
-                                        () => _azureSimulated = value,
-                                      ),
-                                      activeColor: Colors.blue.shade600,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
                           const SizedBox(height: 24),
                         ],
                       ),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF141724),
-                      border: Border(
-                        top: BorderSide(color: Color(0xFF1E2235), width: 1),
+                  if (isCommander)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF141724),
+                        border: Border(
+                          top: BorderSide(color: Color(0xFF1E2235), width: 1),
+                        ),
                       ),
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          await appState.saveSettings(
-                            githubOwner: _ghOwnerController.text.trim(),
-                            githubRepo: _ghRepoController.text.trim(),
-                            githubToken: _ghTokenController.text.trim(),
-                            pagerDutyToken: _pdTokenController.text.trim(),
-                            awsAccessKey: _awsAccessKeyController.text.trim(),
-                            awsSecretKey: _awsSecretKeyController.text.trim(),
-                            awsRegion: _awsRegionController.text.trim(),
-                            awsSimulated: _awsSimulated,
-                            azureTenantId: _azureTenantIdController.text.trim(),
-                            azureClientId: _azureClientIdController.text.trim(),
-                            azureClientSecret: _azureClientSecretController.text
-                                .trim(),
-                            azureSubscriptionId: _azureSubscriptionIdController
-                                .text
-                                .trim(),
-                            azureSimulated: _azureSimulated,
-                            gcpProjectId: _gcpProjectIdController.text.trim(),
-                            gcpTokenOrKey: _gcpTokenOrKeyController.text.trim(),
-                            gcpIsApiKey: _gcpIsApiKey,
-                            gcpSimulated: _gcpSimulated,
-                          );
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                backgroundColor: Color(0xFF66BB6A),
-                                content: Text(
-                                  'Configuration saved and encrypted successfully!',
-                                ),
-                              ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            await appState.saveSettings(
+                              githubOwner: _ghOwnerController.text.trim(),
+                              githubRepo: _ghRepoController.text.trim(),
+                              githubToken: _ghTokenController.text.trim(),
+                              pagerDutyToken: _pdTokenController.text.trim(),
+                              awsAccessKey: _awsAccessKeyController.text.trim(),
+                              awsSecretKey: _awsSecretKeyController.text.trim(),
+                              awsRegion: _awsRegionController.text.trim(),
+                              azureTenantId: _azureTenantIdController.text
+                                  .trim(),
+                              azureClientId: _azureClientIdController.text
+                                  .trim(),
+                              azureClientSecret: _azureClientSecretController
+                                  .text
+                                  .trim(),
+                              azureSubscriptionId:
+                                  _azureSubscriptionIdController.text.trim(),
+                              gcpProjectId: _gcpProjectIdController.text.trim(),
+                              gcpTokenOrKey: _gcpTokenOrKeyController.text
+                                  .trim(),
+                              gcpIsApiKey: _gcpIsApiKey,
                             );
-                            if (Navigator.of(context).canPop()) {
-                              Navigator.of(context).pop();
-                            } else {
-                              context.go('/home-page');
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  backgroundColor: Color(0xFF66BB6A),
+                                  content: Text(
+                                    'Configuration saved and encrypted successfully!',
+                                  ),
+                                ),
+                              );
+                              if (Navigator.of(context).canPop()) {
+                                Navigator.of(context).pop();
+                              } else {
+                                context.go('/home-page');
+                              }
                             }
-                          }
-                        },
-                        icon: const Icon(Icons.save, size: 18),
-                        label: const Text('SAVE & REFRESH DASHBOARD'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                          },
+                          icon: const Icon(Icons.save, size: 18),
+                          label: const Text('SAVE & REFRESH DASHBOARD'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueAccent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
       ),

@@ -32,11 +32,14 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<AppState>(create: (context) => AppState()),
       ],
-      builder: (context, child) => MaterialApp.router(
-        debugShowCheckedModeBanner: false,
-        theme: AppState.of(context).theme,
-        routerConfig: appRouter,
-      ),
+      builder: (context, child) {
+        final appState = AppState.of(context);
+        return MaterialApp.router(
+          debugShowCheckedModeBanner: false,
+          theme: appState.theme,
+          routerConfig: routerFor(appState),
+        );
+      },
     );
   }
 }

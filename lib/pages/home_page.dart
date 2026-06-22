@@ -55,6 +55,17 @@ class HomePage extends StatelessWidget {
     }
   }
 
+  Color _getMemberColor(String memberId) {
+    const palette = [
+      Color(0xFFEF5350),
+      Color(0xFFFFB74D),
+      Color(0xFF42A5F5),
+      Color(0xFFAB47BC),
+      Color(0xFF66BB6A),
+    ];
+    return palette[memberId.hashCode.abs() % palette.length];
+  }
+
   Widget _buildKpiCard(
     BuildContext context, {
     required String label,
@@ -411,7 +422,8 @@ class HomePage extends StatelessWidget {
                                                 ),
                                               ],
                                             ),
-                                            if (incident.assignedTo != null)
+                                            if (incident.assignedToMember !=
+                                                null)
                                               Container(
                                                 padding:
                                                     const EdgeInsets.symmetric(
@@ -419,30 +431,31 @@ class HomePage extends StatelessWidget {
                                                       vertical: 2,
                                                     ),
                                                 decoration: BoxDecoration(
-                                                  color: Color(
+                                                  color: _getMemberColor(
                                                     incident
-                                                        .assignedTo!
-                                                        .avatarColor,
+                                                        .assignedToMember!
+                                                        .id,
                                                   ).withOpacity(0.1),
                                                   borderRadius:
                                                       BorderRadius.circular(4),
                                                   border: Border.all(
-                                                    color: Color(
+                                                    color: _getMemberColor(
                                                       incident
-                                                          .assignedTo!
-                                                          .avatarColor,
+                                                          .assignedToMember!
+                                                          .id,
                                                     ).withOpacity(0.3),
                                                   ),
                                                 ),
                                                 child: Text(
-                                                  incident.assignedTo!.name
+                                                  incident.assignedToMember!
+                                                      .resolvedDisplayName
                                                       .split(' ')
                                                       .first,
                                                   style: TextStyle(
-                                                    color: Color(
+                                                    color: _getMemberColor(
                                                       incident
-                                                          .assignedTo!
-                                                          .avatarColor,
+                                                          .assignedToMember!
+                                                          .id,
                                                     ),
                                                     fontSize: 8,
                                                     fontWeight: FontWeight.bold,
@@ -655,7 +668,19 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  String _formatDuration(Duration? duration) {
+    if (duration == null) {
+      return 'No Available Data';
+    }
+    if (duration.inMinutes < 60) {
+      return '${duration.inMinutes} Min';
+    }
+    final hours = duration.inMinutes / 60;
+    return '${hours.toStringAsFixed(1)} Hr';
+  }
+
   Widget _buildAnalyticsTab(BuildContext context, AppState appState) {
+    final analytics = appState.analytics;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -687,11 +712,11 @@ class HomePage extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
-                            '2.4 Min',
-                            style: TextStyle(
+                          Text(
+                            _formatDuration(analytics.meanTimeToAcknowledge),
+                            style: const TextStyle(
                               color: Color(0xFFFFB74D),
-                              fontSize: 20,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -722,11 +747,11 @@ class HomePage extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
-                            '14.2 Min',
-                            style: TextStyle(
+                          Text(
+                            _formatDuration(analytics.meanTimeToResolve),
+                            style: const TextStyle(
                               color: Color(0xFF66BB6A),
-                              fontSize: 20,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -752,35 +777,47 @@ class HomePage extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF1E2235)),
             ),
-            child: Column(
-              children: [
-                _buildAnalyticsProgressBar(
-                  'AWS CloudWatch',
-                  0.35,
-                  const Color(0xFFFF9900),
-                ),
-                _buildAnalyticsProgressBar(
-                  'GCP Cloud Monitoring',
-                  0.25,
-                  const Color(0xFF0F9D58),
-                ),
-                _buildAnalyticsProgressBar(
-                  'Azure Monitor',
-                  0.2,
-                  const Color(0xFF007FFF),
-                ),
-                _buildAnalyticsProgressBar(
-                  'GitHub Actions',
-                  0.15,
-                  const Color(0xFF24292E),
-                ),
-                _buildAnalyticsProgressBar(
-                  'PagerDuty',
-                  0.05,
-                  const Color(0xFFDF1D24),
-                ),
-              ],
-            ),
+            child: analytics.totalIncidents == 0
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      'No Available Data',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      _buildAnalyticsProgressBar(
+                        'AWS CloudWatch',
+                        analytics.providerPercentage(IncidentProvider.aws),
+                        const Color(0xFFFF9900),
+                      ),
+                      _buildAnalyticsProgressBar(
+                        'GCP Cloud Monitoring',
+                        analytics.providerPercentage(IncidentProvider.gcp),
+                        const Color(0xFF0F9D58),
+                      ),
+                      _buildAnalyticsProgressBar(
+                        'Azure Monitor',
+                        analytics.providerPercentage(IncidentProvider.azure),
+                        const Color(0xFF007FFF),
+                      ),
+                      _buildAnalyticsProgressBar(
+                        'GitHub Actions',
+                        analytics.providerPercentage(
+                          IncidentProvider.githubActions,
+                        ),
+                        const Color(0xFF24292E),
+                      ),
+                      _buildAnalyticsProgressBar(
+                        'PagerDuty',
+                        analytics.providerPercentage(
+                          IncidentProvider.pagerDuty,
+                        ),
+                        const Color(0xFFDF1D24),
+                      ),
+                    ],
+                  ),
           ),
           _buildSectionHeader('Operational Efficiency'),
           const SizedBox(height: 8),
@@ -798,16 +835,17 @@ class HomePage extends StatelessWidget {
                   children: [
                     const Icon(
                       Icons.check_circle_outline,
-                      color: Color(0xFF66BB6A),
+                      color: Colors.grey,
                       size: 24,
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '99.98%',
+                      'No Available Data',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Colors.grey,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 11,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -824,16 +862,17 @@ class HomePage extends StatelessWidget {
                   children: [
                     const Icon(
                       Icons.flash_on_rounded,
-                      color: Color(0xFFFFB74D),
+                      color: Colors.grey,
                       size: 24,
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '94.2%',
+                      'No Available Data',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Colors.grey,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 11,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -854,12 +893,12 @@ class HomePage extends StatelessWidget {
                       size: 24,
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      '1.8 Min',
-                      style: TextStyle(
+                    Text(
+                      _formatDuration(analytics.meanTimeToAssignment),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 14,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -881,12 +920,13 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildRosterTab(BuildContext context, AppState appState) {
+    final members = appState.organizationMembers;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('Current On-Call Rotations'),
+          _buildSectionHeader('Organization Members'),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -895,77 +935,68 @@ class HomePage extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF1E2235)),
             ),
-            child: Column(
-              children: appState.teamRoster
-                  .map(
-                    (member) => Column(
-                      children: [
-                        ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Color(
-                              member.avatarColor,
-                            ).withOpacity(0.15),
-                            child: Text(
-                              member.name.split(' ').map((e) => e[0]).join(),
-                              style: TextStyle(
-                                color: Color(member.avatarColor),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            member.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Text(
-                            member.title,
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 11,
-                            ),
-                          ),
-                          trailing: member.isOnCall
-                              ? Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFF66BB6A,
-                                    ).withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: const Color(
-                                        0xFF66BB6A,
-                                      ).withOpacity(0.4),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'ON CALL',
-                                    style: TextStyle(
-                                      color: Color(0xFF66BB6A),
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                        if (member != appState.teamRoster.last)
-                          const Divider(color: Color(0xFF1E2235), indent: 70),
-                      ],
+            child: members.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Text(
+                        'No Available Data',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
                     ),
                   )
-                  .toList(),
-            ),
+                : Column(
+                    children: members
+                        .map(
+                          (member) => Column(
+                            children: [
+                              ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: _getMemberColor(
+                                    member.id,
+                                  ).withOpacity(0.15),
+                                  child: Text(
+                                    member.resolvedDisplayName
+                                        .split(' ')
+                                        .where((p) => p.isNotEmpty)
+                                        .map((e) => e[0])
+                                        .take(2)
+                                        .join(),
+                                    style: TextStyle(
+                                      color: _getMemberColor(member.id),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  member.resolvedDisplayName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  member.role.displayName,
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                              if (member != members.last)
+                                const Divider(
+                                  color: Color(0xFF1E2235),
+                                  indent: 70,
+                                ),
+                            ],
+                          ),
+                        )
+                        .toList(),
+                  ),
           ),
-          _buildSectionHeader('Active Session Role Controls'),
+          _buildSectionHeader('Your Access Level'),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(16),
@@ -974,98 +1005,44 @@ class HomePage extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF1E2235)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Row(
               children: [
-                const Text(
-                  'Quickly switch your user profile permissions below to verify and test role-based constraints throughout the application:',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 11,
-                    height: 1.4,
-                  ),
+                Icon(
+                  appState.currentUserRole == UserRole.viewer
+                      ? Icons.lock_outline_rounded
+                      : Icons.lock_open_rounded,
+                  size: 16,
+                  color: appState.currentUserRole == UserRole.viewer
+                      ? const Color(0xFFEF5350)
+                      : const Color(0xFF66BB6A),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    ChoiceChip(
-                      label: const Text(
-                        'Viewer',
-                        style: TextStyle(fontSize: 10),
-                      ),
-                      selected: appState.currentUserRole == UserRole.viewer,
-                      onSelected: (selected) {
-                        if (selected) {
-                          appState.updateUserRole(UserRole.viewer);
-                        }
-                      },
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    appState.currentUserRole == UserRole.viewer
+                        ? 'Viewer: Read-only. All actions (Acknowledge, Escalate, Resolve, Assign, Comments) are disabled.'
+                        : appState.currentUserRole == UserRole.commander
+                        ? 'Commander: Full operational and organization-management access.'
+                        : 'Responder: Full operational mutations and collaboration enabled.',
+                    style: TextStyle(
+                      color: appState.currentUserRole == UserRole.viewer
+                          ? const Color(0xFFEF5350)
+                          : const Color(0xFF66BB6A),
+                      fontSize: 11,
                     ),
-                    ChoiceChip(
-                      label: const Text(
-                        'Responder',
-                        style: TextStyle(fontSize: 10),
-                      ),
-                      selected: appState.currentUserRole == UserRole.responder,
-                      onSelected: (selected) {
-                        if (selected) {
-                          appState.updateUserRole(UserRole.responder);
-                        }
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text(
-                        'Commander',
-                        style: TextStyle(fontSize: 10),
-                      ),
-                      selected: appState.currentUserRole == UserRole.commander,
-                      onSelected: (selected) {
-                        if (selected) {
-                          appState.updateUserRole(UserRole.commander);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F111A),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF1E2235)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        appState.currentUserRole == UserRole.viewer
-                            ? Icons.lock_outline_rounded
-                            : Icons.lock_open_rounded,
-                        size: 16,
-                        color: appState.currentUserRole == UserRole.viewer
-                            ? const Color(0xFFEF5350)
-                            : const Color(0xFF66BB6A),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          appState.currentUserRole == UserRole.viewer
-                              ? 'Viewer Mode: All actions (Acknowledge, Escalate, Resolve, Assign, Comments) are disabled.'
-                              : 'Authorized Responder: Full operational mutations and collaboration is enabled.',
-                          style: TextStyle(
-                            color: appState.currentUserRole == UserRole.viewer
-                                ? const Color(0xFFEF5350)
-                                : const Color(0xFF66BB6A),
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ],
             ),
           ),
+          if (appState.currentUserRole == UserRole.commander)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Manage roles, invites, and QR approvals from Settings → Organization.',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+              ),
+            ),
           const SizedBox(height: 16),
         ],
       ),

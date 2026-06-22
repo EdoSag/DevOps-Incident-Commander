@@ -1,23 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-<!-- NOWA_PREVIEW_INJECT_START -->
-<script>
-  if (location.protocol === 'https:') {
-    Object.defineProperty(window, '$dwdsDevHandlerPath', {
-      value: 'wss://' + location.host + '/$dwdsSseHandler',
-      writable: false,
-      configurable: false,
-    });
-    Object.defineProperty(window, '$reloadedSourcesPath', {
-      value: 'https://' + location.host + '/reloaded_sources.json',
-      writable: false,
-      configurable: false,
-    });
-  }
-</script>
-<!-- NOWA_PREVIEW_INJECT_END -->
-
 <script>
   // Defensively mock Corbado Web SDK to prevent passkeys_web plugin from crashing inside the sandboxed iframe
   window.corbado = window.corbado || {};
